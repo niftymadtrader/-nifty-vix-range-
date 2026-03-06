@@ -217,7 +217,7 @@ function calculateDTE(expiryStr) {
 
     function lastThursday(y, m) {
         const d = new Date(y, m + 1, 0);
-        while (d.getDay() !== 4) d.setDate(d.getDate() - 1);
+        while (d.getDay() !== 2) d.setDate(d.getDate() - 1);
         return d;
     }
 
