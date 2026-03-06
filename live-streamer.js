@@ -199,7 +199,7 @@ function calculateDTE(expiryStr) {
 
     if (expiryStr) {
         const expiry = new Date(expiryStr);
-        return Math.max(1, Math.ceil((expiry - today) / (1000 * 60 * 60 * 24)) + 1);
+        return Math.max(1, Math.ceil((expiry - today) / (1000 * 60 * 60 * 24)));
     }
 
     const year = today.getFullYear();
@@ -214,7 +214,7 @@ function calculateDTE(expiryStr) {
     let expiry = lastThursday(year, month);
     if (today > expiry) expiry = lastThursday(year, month + 1);
 
-    return Math.max(1, Math.ceil((expiry - today) / (1000 * 60 * 60 * 24)) + 1);
+    return Math.max(1, Math.ceil((expiry - today) / (1000 * 60 * 60 * 24)));
 }
 
 module.exports = {
