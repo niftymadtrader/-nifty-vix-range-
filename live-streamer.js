@@ -357,58 +357,71 @@ function calculateDTE(expiryStr) {
     return Math.max(1, Math.ceil((expiry - today) / (1000 * 60 * 60 * 24)));
 }
 
-// ─── Backfill from Upstox Intraday Candles ───
+// ─── Backfill from Upstox Historical Candles ───
 async function backfillHistory() {
     try {
-        console.log('🔄 Backfilling history from Upstox intraday candles...');
+        console.log('🔄 Backfilling today\'s data from Upstox candle API...');
 
         const [niftyCandles, vixCandles] = await Promise.all([
             upstox.getIntradayCandles(config.NIFTY_KEY, '1minute'),
             upstox.getIntradayCandles(config.VIX_KEY, '1minute'),
         ]);
 
-        if (!niftyCandles.length || !vixCandles.length) {
-            console.log('⚠ No intraday candles available (market may be closed)');
+        console.log(`📊 Nifty candles: ${niftyCandles.length} | VIX candles: ${vixCandles.length}`);
+
+        if (!niftyCandles.length) {
+            console.log('⚠ No Nifty candles (market may be closed or holiday)');
             return 0;
         }
 
         // Upstox candles: [timestamp, open, high, low, close, volume, oi]
-        // They come in reverse order (latest first) — reverse them
-        const nMap = {};
-        niftyCandles.reverse().forEach(c => {
+        // They come REVERSE order (latest first) — sort by time ascending
+
+        function parseCandle(c) {
             const d = new Date(c[0]);
-            const key = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
-            nMap[key] = { close: c[4], open: c[1], high: c[2], low: c[3], prevClose: 0 };
-        });
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            const ss = String(d.getSeconds()).padStart(2, '0');
+            return {
+                timeKey: `${hh}:${mm}`,           // HH:MM for matching
+                timeLabel: `${hh}:${mm}:${ss}`,   // HH:MM:SS for display
+                ts: d.getTime(),
+                open: c[1], high: c[2], low: c[3], close: c[4],
+            };
+        }
 
-        const vMap = {};
-        vixCandles.reverse().forEach(c => {
-            const d = new Date(c[0]);
-            const key = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
-            vMap[key] = { close: c[4], open: c[1] };
-        });
+        // Parse and sort ascending
+        const niftyParsed = niftyCandles.map(parseCandle).sort((a, b) => a.ts - b.ts);
+        const vixParsed = vixCandles.map(parseCandle).sort((a, b) => a.ts - b.ts);
 
-        // Get prev close for change calc (first candle's open ≈ prev close)
-        const niftyTimes = Object.keys(nMap);
-        const firstNifty = nMap[niftyTimes[0]];
-        const prevClose = firstNifty ? firstNifty.open : 0;
+        console.log(`   Nifty: ${niftyParsed[0]?.timeLabel} → ${niftyParsed[niftyParsed.length-1]?.timeLabel}`);
+        console.log(`   VIX:   ${vixParsed[0]?.timeLabel} → ${vixParsed[vixParsed.length-1]?.timeLabel}`);
 
-        // Get existing timestamps to avoid duplicates
-        const existingTimes = new Set(tickHistory.map(t => t.t));
+        // Build VIX lookup by HH:MM
+        const vixByMin = {};
+        vixParsed.forEach(v => { vixByMin[v.timeKey] = v; });
+
+        // Prev close = first candle open price
+        const prevClose = niftyParsed[0] ? niftyParsed[0].open : 0;
+
+        // Get existing time keys to skip duplicates
+        const existingKeys = new Set(tickHistory.map(t => t.t.substring(0, 5))); // HH:MM
 
         const dte = calculateDTE();
         let added = 0;
+        let lastVix = vixParsed[0] ? vixParsed[0].close : 15; // fallback VIX
 
-        // Merge nifty + vix by time
-        niftyTimes.forEach(time => {
-            if (existingTimes.has(time)) return; // skip if already in history
-
-            const n = nMap[time];
-            const v = vMap[time];
-            if (!n || !v) return;
+        niftyParsed.forEach(n => {
+            // Skip if already have this minute
+            if (existingKeys.has(n.timeKey)) return;
 
             const spot = n.close;
-            const vix = v.close;
+
+            // Find VIX for this minute, or use last known VIX
+            const v = vixByMin[n.timeKey];
+            const vix = v ? v.close : lastVix;
+            if (v) lastVix = v.close;
+
             const chg = prevClose > 0 ? +(spot - prevClose).toFixed(2) : 0;
             const pct = prevClose > 0 ? +((spot - prevClose) / prevClose * 100).toFixed(2) : 0;
 
@@ -420,8 +433,8 @@ async function backfillHistory() {
             const m3 = m1 * 3;
 
             tickHistory.push({
-                t: time,
-                ts: Date.now(),
+                t: n.timeLabel,
+                ts: n.ts,
                 spot,
                 vix,
                 chg,
@@ -437,15 +450,18 @@ async function backfillHistory() {
             added++;
         });
 
-        // Sort by time
-        tickHistory.sort((a, b) => a.t.localeCompare(b.t));
+        // Sort all ticks by timestamp
+        tickHistory.sort((a, b) => {
+            if (a.ts && b.ts) return a.ts - b.ts;
+            return a.t.localeCompare(b.t);
+        });
 
-        // Save to file
+        // Save
         if (added > 0) {
             saveHistoryToFile();
-            console.log(`✅ Backfilled ${added} candles (${niftyTimes[0]} → ${niftyTimes[niftyTimes.length - 1]})`);
+            console.log(`✅ Backfilled ${added} candles | Total history: ${tickHistory.length} ticks`);
         } else {
-            console.log('📊 All candles already in history, nothing to backfill');
+            console.log('📊 All candles already in history');
         }
 
         return added;

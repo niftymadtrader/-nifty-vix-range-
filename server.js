@@ -199,6 +199,42 @@ app.get('/api/history', (req, res) => {
 });
 
 // ═══════════════════════════════════════
+// ROUTE: /api/backfill — Manually trigger backfill
+// ═══════════════════════════════════════
+app.get('/api/backfill', async (req, res) => {
+    try {
+        const count = await live.backfillHistory();
+        const history = live.getTickHistory();
+        res.json({
+            success: true,
+            backfilled: count,
+            totalTicks: history.length,
+            firstTick: history[0]?.t || 'none',
+            lastTick: history[history.length - 1]?.t || 'none',
+        });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════
+// ROUTE: /api/candles — Debug raw candle data
+// ═══════════════════════════════════════
+app.get('/api/candles', async (req, res) => {
+    try {
+        const niftyCandles = await upstox.getIntradayCandles(config.NIFTY_KEY, '1minute');
+        const vixCandles = await upstox.getIntradayCandles(config.VIX_KEY, '1minute');
+        res.json({
+            success: true,
+            nifty: { count: niftyCandles.length, first: niftyCandles[niftyCandles.length - 1], last: niftyCandles[0], sample: niftyCandles.slice(0, 3) },
+            vix: { count: vixCandles.length, first: vixCandles[vixCandles.length - 1], last: vixCandles[0], sample: vixCandles.slice(0, 3) },
+        });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════
 // ROUTE 4: /api/status — Check status
 // ═══════════════════════════════════════
 app.get('/api/status', (req, res) => {

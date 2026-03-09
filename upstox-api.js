@@ -186,29 +186,58 @@ async function getNiftyAndVIX() {
     return { nifty, vix };
 }
 
-// ─── Fetch Intraday 1-min candles (for backfill) ───
+// ─── Fetch full day 1-min candles (Historical Candle API) ───
 async function getIntradayCandles(instrumentKey, interval = '1minute') {
     if (!session.isLoggedIn || !session.accessToken) {
         throw new Error('Not logged in');
     }
 
+    const encodedKey = encodeURIComponent(instrumentKey);
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+
+    // Method 1: Historical candle API with today's date (full day data)
     try {
-        const encodedKey = encodeURIComponent(instrumentKey);
-        const url = `https://api.upstox.com/v2/historical-candle/intraday/${encodedKey}/${interval}`;
+        const url = `https://api.upstox.com/v2/historical-candle/${encodedKey}/${interval}/${dateStr}/${dateStr}`;
+        console.log(`📡 Fetching candles: ${instrumentKey} | ${dateStr}`);
 
         const response = await axios.get(url, {
             headers: getHeaders(),
             timeout: 15000,
         });
 
-        if (response.data.status === 'success') {
-            return response.data.data.candles || [];
+        if (response.data.status === 'success' && response.data.data.candles) {
+            const candles = response.data.data.candles;
+            console.log(`   ✅ Got ${candles.length} candles from historical API`);
+            return candles;
         }
-        throw new Error(response.data.message || 'Candle fetch failed');
     } catch (err) {
-        console.error(`❌ Intraday candle error (${instrumentKey}):`, err.response?.data?.message || err.message);
-        return [];
+        console.log(`   ⚠ Historical API failed: ${err.response?.data?.message || err.message}`);
     }
+
+    // Method 2: Fallback to intraday endpoint
+    try {
+        const url = `https://api.upstox.com/v2/historical-candle/intraday/${encodedKey}/${interval}`;
+        console.log(`📡 Fallback to intraday API: ${instrumentKey}`);
+
+        const response = await axios.get(url, {
+            headers: getHeaders(),
+            timeout: 15000,
+        });
+
+        if (response.data.status === 'success' && response.data.data.candles) {
+            const candles = response.data.data.candles;
+            console.log(`   ✅ Got ${candles.length} candles from intraday API`);
+            return candles;
+        }
+    } catch (err) {
+        console.error(`   ❌ Intraday API also failed: ${err.response?.data?.message || err.message}`);
+    }
+
+    return [];
 }
 
 module.exports = {
