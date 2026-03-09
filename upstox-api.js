@@ -187,23 +187,35 @@ async function getNiftyAndVIX() {
 }
 
 // ─── Fetch full day 1-min candles ───
-// Upstox Historical Candle API is PUBLIC — no auth headers needed
-// URL: /v2/historical-candle/{key}/{interval}/{to_date}/{from_date}
+// Intraday API works for today's data, Historical API for past dates
 async function getIntradayCandles(instrumentKey, interval = '1minute') {
     const encodedKey = encodeURIComponent(instrumentKey);
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
 
-    const errors = [];
-
-    // Method 1: Historical candle API (PUBLIC — no auth)
-    // Note: URL format is /{to_date}/{from_date}
+    // Method 1: Intraday endpoint (WORKS for today — returns full day candles)
     try {
+        const url = `https://api.upstox.com/v2/historical-candle/intraday/${encodedKey}/${interval}`;
+        console.log(`📡 Intraday API: ${instrumentKey}`);
+
+        const response = await axios.get(url, {
+            headers: getHeaders(),
+            timeout: 15000,
+        });
+
+        if (response.data.status === 'success' && response.data.data.candles) {
+            const candles = response.data.data.candles;
+            console.log(`   ✅ Got ${candles.length} candles`);
+            if (candles.length > 0) return candles;
+        }
+    } catch (err) {
+        console.log(`   ⚠ Intraday failed: ${err.response?.data?.message || err.message}`);
+    }
+
+    // Method 2: Historical candle API fallback
+    try {
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         const url = `https://api.upstox.com/v2/historical-candle/${encodedKey}/${interval}/${dateStr}/${dateStr}`;
-        console.log(`📡 [Method 1] Historical API: ${url}`);
+        console.log(`📡 Historical API fallback: ${dateStr}`);
 
         const response = await axios.get(url, {
             headers: { 'Accept': 'application/json' },
@@ -215,58 +227,11 @@ async function getIntradayCandles(instrumentKey, interval = '1minute') {
             console.log(`   ✅ Got ${candles.length} candles`);
             if (candles.length > 0) return candles;
         }
-        errors.push('Method 1: success but 0 candles');
     } catch (err) {
-        const msg = err.response?.data?.message || err.response?.data || err.message;
-        console.log(`   ⚠ Method 1 failed:`, msg);
-        errors.push(`Method 1: ${JSON.stringify(msg)}`);
+        console.log(`   ⚠ Historical also failed: ${err.response?.data?.message || err.message}`);
     }
 
-    // Method 2: Try with auth headers
-    try {
-        const url = `https://api.upstox.com/v2/historical-candle/${encodedKey}/${interval}/${dateStr}/${dateStr}`;
-        console.log(`📡 [Method 2] Historical API with auth`);
-
-        const response = await axios.get(url, {
-            headers: getHeaders(),
-            timeout: 15000,
-        });
-
-        if (response.data.status === 'success' && response.data.data.candles) {
-            const candles = response.data.data.candles;
-            console.log(`   ✅ Got ${candles.length} candles`);
-            if (candles.length > 0) return candles;
-        }
-        errors.push('Method 2: success but 0 candles');
-    } catch (err) {
-        const msg = err.response?.data?.message || err.response?.data || err.message;
-        console.log(`   ⚠ Method 2 failed:`, msg);
-        errors.push(`Method 2: ${JSON.stringify(msg)}`);
-    }
-
-    // Method 3: Intraday endpoint (for live market hours)
-    try {
-        const url = `https://api.upstox.com/v2/historical-candle/intraday/${encodedKey}/${interval}`;
-        console.log(`📡 [Method 3] Intraday API`);
-
-        const response = await axios.get(url, {
-            headers: getHeaders(),
-            timeout: 15000,
-        });
-
-        if (response.data.status === 'success' && response.data.data.candles) {
-            const candles = response.data.data.candles;
-            console.log(`   ✅ Got ${candles.length} candles`);
-            if (candles.length > 0) return candles;
-        }
-        errors.push('Method 3: success but 0 candles');
-    } catch (err) {
-        const msg = err.response?.data?.message || err.response?.data || err.message;
-        console.log(`   ⚠ Method 3 failed:`, msg);
-        errors.push(`Method 3: ${JSON.stringify(msg)}`);
-    }
-
-    console.log('❌ All candle methods failed:', errors);
+    console.log('❌ All candle methods returned 0');
     return [];
 }
 
