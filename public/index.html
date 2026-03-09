@@ -14,16 +14,13 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
-/* ── Top Bar ── */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 28px;
   border-bottom: 1px solid #1e1e2e;
   background: #0e0e16;
 }
-.topbar h1 {
-  font-size: 18px; font-weight: 700; color: #f0f0f0;
-}
+.topbar h1 { font-size: 18px; font-weight: 700; color: #f0f0f0; }
 .topbar-right {
   display: flex; gap: 28px; align-items: center;
   font-family: 'DM Mono', monospace; font-size: 13px;
@@ -43,9 +40,8 @@ body {
   width: 6px; height: 6px; border-radius: 50%; background: #51cf66;
   animation: pulse 2s ease-in-out infinite;
 }
-@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
 
-/* ── Info strip ── */
 .info-strip {
   display: flex; gap: 24px; padding: 10px 28px;
   border-bottom: 1px solid #1a1a28;
@@ -53,7 +49,6 @@ body {
   font-family: 'DM Mono', monospace; font-size: 11px; color: #666;
 }
 
-/* ── Chart ── */
 .chart-container {
   position: relative;
   width: 100%;
@@ -62,7 +57,27 @@ body {
   background: #0a0a0f;
 }
 
-/* ── Login ── */
+/* Hover info box (fixed top-left inside chart) */
+.hover-info {
+  position: absolute;
+  top: 20px; left: 24px;
+  background: #12121cee;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  z-index: 10;
+  pointer-events: none;
+  display: none;
+  min-width: 200px;
+  line-height: 1.8;
+}
+.hover-info .hi-time { color: #888; font-size: 10px; margin-bottom: 4px; }
+.hover-info .hi-row { display: flex; justify-content: space-between; gap: 16px; }
+.hover-info .hi-label { color: #777; }
+.hover-info .hi-val { font-weight: 500; }
+
 .center-box { display:flex; align-items:center; justify-content:center; height:calc(100vh - 110px); }
 .login-card {
   background:#12121c; border:1px solid #1e1e2e; border-radius:12px;
@@ -88,7 +103,6 @@ body {
   border:1px solid #2a2a3a; border-radius:8px; cursor:pointer; font-size:12px;
 }
 
-/* Loading */
 .loading { display:flex; align-items:center; justify-content:center; height:calc(100vh - 110px); flex-direction:column; gap:14px; }
 .spinner { width:32px; height:32px; border:3px solid #1e1e2e; border-top-color:#7c3aed; border-radius:50%; animation:spin 0.7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -97,7 +111,6 @@ body {
 </head>
 <body>
 
-<!-- Top Bar -->
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:16px;">
     <h1>NIFTY VIX RANGE</h1>
@@ -110,9 +123,8 @@ body {
   </div>
 </div>
 
-<!-- Legend -->
 <div class="info-strip">
-  <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px solid #2ecc71;display:inline-block;"></span> Spot Price</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2.5px solid #2ecc71;display:inline-block;"></span> Spot Price</span>
   <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed #ff6b6b;display:inline-block;"></span> 1σ Range (68%)</span>
   <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed #4dabf7;display:inline-block;"></span> 2σ Range (95%)</span>
   <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed #b197fc;display:inline-block;"></span> 3σ Range (99.7%)</span>
@@ -124,7 +136,38 @@ body {
 </div>
 
 <script>
+// ===========================
+// CROSSHAIR PLUGIN
+// ===========================
+const crosshairPlugin = {
+  id: 'crosshair',
+  afterDraw(chart) {
+    if (chart._active && chart._active.length) {
+      const activePoint = chart._active[0];
+      const ctx = chart.ctx;
+      const x = activePoint.element.x;
+      const topY = chart.scales.y.top;
+      const bottomY = chart.scales.y.bottom;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, topY);
+      ctx.lineTo(x, bottomY);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff30';
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+};
+Chart.register(crosshairPlugin);
+
+// ===========================
+// CONFIG
+// ===========================
 const API_URL = '/api/range';
+const HISTORY_URL = '/api/history';
 const MAX_POINTS = 22500;
 
 let chartData = {
@@ -137,6 +180,9 @@ let rangeChart = null;
 let MANUAL_MODE = false;
 let manualData = { nifty: 24780.50, vix: 21.14, dte: 27 };
 
+// ===========================
+// FETCH
+// ===========================
 async function fetchData() {
   try {
     const res = await fetch(API_URL);
@@ -150,6 +196,19 @@ async function fetchData() {
     MANUAL_MODE = true;
     return calcManual(manualData.nifty, manualData.vix, manualData.dte);
   }
+}
+
+async function fetchHistory() {
+  try {
+    const res = await fetch(HISTORY_URL);
+    const data = await res.json();
+    if (data.success && data.ticks && data.ticks.length > 0) {
+      return data.ticks;
+    }
+  } catch (err) {
+    console.log('No history available');
+  }
+  return [];
 }
 
 function showLogin() {
@@ -177,7 +236,12 @@ function submitCode() {
 function goManual() {
   MANUAL_MODE = true;
   showChartArea();
-  processData(calcManual(manualData.nifty, manualData.vix, manualData.dte));
+  const d = calcManual(manualData.nifty, manualData.vix, manualData.dte);
+  addTick(d.market.nifty, d.market.vix, d.market.change, d.market.pctChange, d.config.dte,
+    d.ranges.sd1.upper, d.ranges.sd1.lower, d.ranges.sd2.upper, d.ranges.sd2.lower,
+    d.ranges.sd3.upper, d.ranges.sd3.lower);
+  updateHeader(d.market.nifty, d.market.vix, d.market.change, d.market.pctChange, d.config.dte);
+  updateChart();
 }
 
 function calcManual(nifty, vix, dte) {
@@ -196,40 +260,72 @@ function calcManual(nifty, vix, dte) {
   };
 }
 
+// ===========================
+// CHART AREA
+// ===========================
 function showChartArea() {
-  document.getElementById('app').innerHTML = '<div class="chart-container"><canvas id="rangeChart"></canvas></div>';
+  document.getElementById('app').innerHTML = `
+    <div class="chart-container">
+      <div class="hover-info" id="hoverInfo">
+        <div class="hi-time" id="hiTime"></div>
+        <div class="hi-row"><span class="hi-label">Spot</span><span class="hi-val" id="hiSpot" style="color:#2ecc71"></span></div>
+        <div class="hi-row"><span class="hi-label">1σ Upper</span><span class="hi-val" id="hi1U" style="color:#ff6b6b"></span></div>
+        <div class="hi-row"><span class="hi-label">1σ Lower</span><span class="hi-val" id="hi1L" style="color:#ff6b6b"></span></div>
+        <div class="hi-row"><span class="hi-label">2σ Upper</span><span class="hi-val" id="hi2U" style="color:#4dabf7"></span></div>
+        <div class="hi-row"><span class="hi-label">2σ Lower</span><span class="hi-val" id="hi2L" style="color:#4dabf7"></span></div>
+        <div class="hi-row"><span class="hi-label">3σ Upper</span><span class="hi-val" id="hi3U" style="color:#b197fc"></span></div>
+        <div class="hi-row"><span class="hi-label">3σ Lower</span><span class="hi-val" id="hi3L" style="color:#b197fc"></span></div>
+      </div>
+      <canvas id="rangeChart"></canvas>
+    </div>`;
 }
 
+// ===========================
+// DATA MANAGEMENT
+// ===========================
 const fmtIN = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 1 });
 
-function processData(d) {
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
-
-  chartData.labels.push(timeStr);
-  chartData.spot.push(d.market.nifty);
-  chartData.sd1U.push(d.ranges.sd1.upper);
-  chartData.sd1L.push(d.ranges.sd1.lower);
-  chartData.sd2U.push(d.ranges.sd2.upper);
-  chartData.sd2L.push(d.ranges.sd2.lower);
-  chartData.sd3U.push(d.ranges.sd3.upper);
-  chartData.sd3L.push(d.ranges.sd3.lower);
+function addTick(spot, vix, chg, pct, dte, sd1U, sd1L, sd2U, sd2L, sd3U, sd3L, timeLabel) {
+  const t = timeLabel || new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
+  chartData.labels.push(t);
+  chartData.spot.push(spot);
+  chartData.sd1U.push(sd1U); chartData.sd1L.push(sd1L);
+  chartData.sd2U.push(sd2U); chartData.sd2L.push(sd2L);
+  chartData.sd3U.push(sd3U); chartData.sd3L.push(sd3L);
 
   if (chartData.labels.length > MAX_POINTS) {
     Object.keys(chartData).forEach(k => chartData[k].shift());
   }
+}
 
-  document.getElementById('hSpot').textContent = fmtIN(d.market.nifty);
-  const chgEl = document.getElementById('hChg');
-  const isUp = d.market.pctChange >= 0;
-  chgEl.className = isUp ? 'chg-up' : 'chg-dn';
-  chgEl.textContent = `${isUp ? '▲' : '▼'} ${Math.abs(d.market.change).toFixed(1)} (${d.market.pctChange >= 0 ? '+' : ''}${d.market.pctChange}%)`;
-  document.getElementById('hVix').textContent = Number(d.market.vix).toFixed(2);
-  document.getElementById('hDte').textContent = d.config.dte;
+function loadHistory(ticks) {
+  ticks.forEach(tk => {
+    addTick(tk.spot, tk.vix, tk.chg, tk.pct, tk.dte,
+      tk.sd1U, tk.sd1L, tk.sd2U, tk.sd2L, tk.sd3U, tk.sd3L, tk.t);
+  });
+}
 
+function processSSE(d) {
+  addTick(d.market.nifty, d.market.vix, d.market.change, d.market.pctChange, d.config.dte,
+    d.ranges.sd1.upper, d.ranges.sd1.lower, d.ranges.sd2.upper, d.ranges.sd2.lower,
+    d.ranges.sd3.upper, d.ranges.sd3.lower);
+  updateHeader(d.market.nifty, d.market.vix, d.market.change, d.market.pctChange, d.config.dte);
   updateChart();
 }
 
+function updateHeader(spot, vix, chg, pct, dte) {
+  document.getElementById('hSpot').textContent = fmtIN(spot);
+  const el = document.getElementById('hChg');
+  const up = pct >= 0;
+  el.className = up ? 'chg-up' : 'chg-dn';
+  el.textContent = `${up ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)} (${pct >= 0 ? '+' : ''}${pct}%)`;
+  document.getElementById('hVix').textContent = Number(vix).toFixed(2);
+  document.getElementById('hDte').textContent = dte;
+}
+
+// ===========================
+// CHART
+// ===========================
 function updateChart() {
   const ctx = document.getElementById('rangeChart');
   if (!ctx) return;
@@ -249,13 +345,13 @@ function updateChart() {
 
   const mkDS = (label, color, width, dash) => ({
     label, data: [],
-    borderColor: color,
-    borderWidth: width,
+    borderColor: color, borderWidth: width,
     borderDash: dash || [],
-    pointRadius: 0,
-    pointHoverRadius: 4,
-    tension: 0.1,
-    fill: false,
+    pointRadius: 0, pointHoverRadius: 5,
+    pointHoverBackgroundColor: color,
+    pointHoverBorderColor: '#fff',
+    pointHoverBorderWidth: 2,
+    tension: 0.1, fill: false,
   });
 
   rangeChart = new Chart(ctx, {
@@ -263,9 +359,9 @@ function updateChart() {
     data: {
       labels: chartData.labels,
       datasets: [
-        { ...mkDS('Spot', '#2ecc71', 2), data: chartData.spot },
-        { ...mkDS('1σ Upper', '#ff6b6b', 1.2, [6,4]), data: chartData.sd1U },
-        { ...mkDS('1σ Lower', '#ff6b6b', 1.2, [6,4]), data: chartData.sd1L },
+        { ...mkDS('Spot', '#2ecc71', 2.5), data: chartData.spot },
+        { ...mkDS('1σ Upper', '#ff6b6b', 1.3, [6,4]), data: chartData.sd1U },
+        { ...mkDS('1σ Lower', '#ff6b6b', 1.3, [6,4]), data: chartData.sd1L },
         { ...mkDS('2σ Upper', '#4dabf7', 1, [4,4]), data: chartData.sd2U },
         { ...mkDS('2σ Lower', '#4dabf7', 1, [4,4]), data: chartData.sd2L },
         { ...mkDS('3σ Upper', '#b197fc', 0.8, [2,4]), data: chartData.sd3U },
@@ -277,24 +373,26 @@ function updateChart() {
       maintainAspectRatio: false,
       animation: false,
       interaction: { mode: 'index', intersect: false },
+      onHover: (event, elements, chart) => {
+        const box = document.getElementById('hoverInfo');
+        if (!elements || !elements.length) {
+          box.style.display = 'none';
+          return;
+        }
+        const idx = elements[0].index;
+        box.style.display = 'block';
+        document.getElementById('hiTime').textContent = '⏱ Time: ' + chartData.labels[idx];
+        document.getElementById('hiSpot').textContent = fmtIN(chartData.spot[idx]);
+        document.getElementById('hi1U').textContent = fmtIN(chartData.sd1U[idx]);
+        document.getElementById('hi1L').textContent = fmtIN(chartData.sd1L[idx]);
+        document.getElementById('hi2U').textContent = fmtIN(chartData.sd2U[idx]);
+        document.getElementById('hi2L').textContent = fmtIN(chartData.sd2L[idx]);
+        document.getElementById('hi3U').textContent = fmtIN(chartData.sd3U[idx]);
+        document.getElementById('hi3L').textContent = fmtIN(chartData.sd3L[idx]);
+      },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: '#16161e',
-          titleColor: '#ccc',
-          bodyColor: '#aaa',
-          borderColor: '#2a2a3a',
-          borderWidth: 1,
-          titleFont: { family: 'DM Mono', size: 11, weight: '500' },
-          bodyFont: { family: 'DM Mono', size: 11 },
-          padding: 10,
-          cornerRadius: 6,
-          displayColors: true,
-          boxPadding: 4,
-          callbacks: {
-            label: ctx => ' ' + ctx.dataset.label + '  ' + fmtIN(ctx.parsed.y),
-          }
-        }
+        tooltip: { enabled: false },
       },
       scales: {
         x: {
@@ -303,7 +401,7 @@ function updateChart() {
             font: { family: 'DM Mono', size: 10 },
             maxTicksLimit: 14,
             maxRotation: 0,
-            callback: function(val, i) {
+            callback: function(val) {
               const label = this.getLabelForValue(val);
               return label ? label.substring(0, 5) : '';
             }
@@ -327,12 +425,15 @@ function updateChart() {
   });
 }
 
+// ===========================
+// SSE LIVE STREAM
+// ===========================
 function startLiveStream() {
   const evtSource = new EventSource('/api/stream');
   evtSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.success) processData(data);
+      if (data.success) processSSE(data);
     } catch (err) {
       console.log('Stream parse error:', err);
     }
@@ -340,11 +441,30 @@ function startLiveStream() {
   evtSource.onerror = () => console.log('Stream disconnected, auto-retrying...');
 }
 
+// ===========================
+// INIT
+// ===========================
 async function init() {
   const data = await fetchData();
   if (!data) return;
+
   showChartArea();
-  processData(data);
+
+  // 1. Load full day history first
+  const history = await fetchHistory();
+  if (history.length > 0) {
+    console.log(`📊 Loaded ${history.length} historical ticks`);
+    loadHistory(history);
+    // Update header with last tick
+    const last = history[history.length - 1];
+    updateHeader(last.spot, last.vix, last.chg, last.pct, last.dte);
+    updateChart();
+  } else {
+    // No history, use current data as first point
+    processSSE(data);
+  }
+
+  // 2. Connect SSE for live updates
   startLiveStream();
 }
 
