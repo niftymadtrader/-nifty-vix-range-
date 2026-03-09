@@ -4,103 +4,119 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nifty VIX Range — Live</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #06080e;
-  color: #e6edf3;
-  font-family: 'Outfit', sans-serif;
-  height: 100vh;
-  overflow: hidden;
+  background: #0a0a0f;
+  color: #e0e0e0;
+  font-family: 'Inter', sans-serif;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 20px;
-  border-bottom: 1px solid #1c2432;
+/* ── Top Bar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px;
+  border-bottom: 1px solid #1e1e2e;
+  background: #0e0e16;
 }
-.header h1 {
-  font-size: 15px; font-weight: 700;
-  background: linear-gradient(135deg, #f7b731, #ff9f43);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+.topbar h1 {
+  font-size: 18px; font-weight: 700; color: #f0f0f0;
 }
-.hdr-right {
-  display: flex; gap: 20px; align-items: center;
-  font-family: 'DM Mono', monospace; font-size: 12px;
+.topbar-right {
+  display: flex; gap: 28px; align-items: center;
+  font-family: 'DM Mono', monospace; font-size: 13px;
 }
-.hdr-right .lbl { color: #484f58; }
-.hdr-right .spot { color: #fff; font-weight: 600; font-size: 14px; }
-.hdr-right .vix { color: #fc5c65; font-weight: 500; }
-.hdr-right .dte { color: #f7b731; font-weight: 500; }
-.hdr-right .chg-up { color: #26de81; font-size: 11px; }
-.hdr-right .chg-dn { color: #fc5c65; font-size: 11px; }
-.live-dot {
-  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-  background: #26de81; margin-right: 4px;
+.topbar-right .lbl { color: #555; font-size: 11px; margin-right: 4px; }
+.topbar-right .spot-val { color: #fff; font-weight: 600; font-size: 16px; }
+.topbar-right .vix-val { color: #ff6b6b; font-weight: 600; }
+.topbar-right .dte-val { color: #ffd43b; font-weight: 600; }
+.chg-up { color: #51cf66; font-size: 12px; font-weight: 500; }
+.chg-dn { color: #ff6b6b; font-size: 12px; font-weight: 500; }
+.live-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #0d2818; border: 1px solid #1a4a2a; border-radius: 20px;
+  padding: 4px 12px; font-size: 11px; color: #51cf66; font-weight: 600;
+}
+.live-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #51cf66;
   animation: pulse 2s ease-in-out infinite;
 }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-.live-tag { color: #26de81; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px; }
 
-.chart-wrap {
+/* ── Info strip ── */
+.info-strip {
+  display: flex; gap: 24px; padding: 10px 28px;
+  border-bottom: 1px solid #1a1a28;
+  background: #0c0c14;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #666;
+}
+
+/* ── Chart ── */
+.chart-container {
   position: relative;
-  height: calc(100vh - 46px);
-  padding: 4px 8px 2px 8px;
+  width: 100%;
+  height: calc(100vh - 110px);
+  padding: 12px 16px 8px 8px;
+  background: #0a0a0f;
 }
 
-/* Login screen */
-.center-box { display:flex; align-items:center; justify-content:center; height:calc(100vh - 46px); }
+/* ── Login ── */
+.center-box { display:flex; align-items:center; justify-content:center; height:calc(100vh - 110px); }
 .login-card {
-  background: #0d1117; border: 1px solid #1c2432; border-radius: 16px;
-  padding: 36px; text-align: center; max-width: 480px;
+  background:#12121c; border:1px solid #1e1e2e; border-radius:12px;
+  padding:40px; text-align:center; max-width:460px;
 }
-.login-card h2 { color: #f7b731; margin-bottom: 10px; font-family: 'DM Mono', monospace; font-size: 16px; }
-.login-card p { color: #7d8590; font-family: 'DM Mono', monospace; font-size: 11px; line-height: 2; }
+.login-card h2 { color:#f0f0f0; margin-bottom:10px; font-size:18px; }
+.login-card p { color:#777; font-size:13px; line-height:1.9; }
 .login-card a.btn {
-  display:inline-block; margin:14px 0; padding:10px 26px;
-  background:linear-gradient(135deg,#f7b731,#ff9f43);
-  color:#000; font-family:'DM Mono',monospace; font-weight:600;
-  border-radius:8px; text-decoration:none; font-size:12px;
+  display:inline-block; margin:16px 0; padding:10px 28px;
+  background:#7c3aed; color:#fff; font-weight:600;
+  border-radius:8px; text-decoration:none; font-size:13px;
 }
 .login-card input {
-  background:#080c14; border:1px solid #1c2432; border-radius:8px;
-  color:#e6edf3; font-family:'DM Mono',monospace; padding:8px 12px;
-  width:240px; text-align:center; font-size:12px;
+  background:#1a1a28; border:1px solid #2a2a3a; border-radius:8px;
+  color:#e0e0e0; padding:9px 14px; width:220px; text-align:center; font-size:13px;
 }
 .login-card button {
-  margin-left:6px; padding:8px 16px; background:#26de81; color:#000;
-  border:none; border-radius:8px; font-family:'DM Mono',monospace; font-weight:600; cursor:pointer;
+  margin-left:6px; padding:9px 18px; background:#51cf66; color:#000;
+  border:none; border-radius:8px; font-weight:600; cursor:pointer;
 }
 .login-card .manual-btn {
-  margin-top:14px; padding:7px 16px; background:#131922; color:#e6edf3;
-  border:1px solid #1c2432; border-radius:8px; font-family:'DM Mono',monospace; cursor:pointer; font-size:11px;
+  margin-top:14px; padding:8px 18px; background:#1a1a28; color:#ccc;
+  border:1px solid #2a2a3a; border-radius:8px; cursor:pointer; font-size:12px;
 }
 
 /* Loading */
-.loading { display:flex; align-items:center; justify-content:center; height:calc(100vh - 46px); flex-direction:column; gap:16px; }
-.spinner {
-  width:36px; height:36px; border:3px solid #1c2432;
-  border-top-color:#f7b731; border-radius:50%;
-  animation:spin 0.8s linear infinite;
-}
+.loading { display:flex; align-items:center; justify-content:center; height:calc(100vh - 110px); flex-direction:column; gap:14px; }
+.spinner { width:32px; height:32px; border:3px solid #1e1e2e; border-top-color:#7c3aed; border-radius:50%; animation:spin 0.7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-.loading span { font-family:'DM Mono',monospace; font-size:12px; color:#484f58; }
+.loading span { font-size:13px; color:#555; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>NIFTY VIX RANGE</h1>
-  <div class="hdr-right">
-    <span class="live-tag"><span class="live-dot"></span>LIVE</span>
-    <span><span class="lbl">NIFTY </span><span class="spot" id="hSpot">—</span> <span id="hChg"></span></span>
-    <span><span class="lbl">VIX </span><span class="vix" id="hVix">—</span></span>
-    <span><span class="lbl">DTE </span><span class="dte" id="hDte">—</span></span>
+<!-- Top Bar -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <h1>NIFTY VIX RANGE</h1>
+    <span class="live-badge"><span class="dot"></span>LIVE</span>
   </div>
+  <div class="topbar-right">
+    <span><span class="lbl">Spot</span> <span class="spot-val" id="hSpot">—</span> <span id="hChg"></span></span>
+    <span><span class="lbl">VIX</span> <span class="vix-val" id="hVix">—</span></span>
+    <span><span class="lbl">DTE</span> <span class="dte-val" id="hDte">—</span></span>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="info-strip">
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px solid #2ecc71;display:inline-block;"></span> Spot Price</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed #ff6b6b;display:inline-block;"></span> 1σ Range (68%)</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed #4dabf7;display:inline-block;"></span> 2σ Range (95%)</span>
+  <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed #b197fc;display:inline-block;"></span> 3σ Range (99.7%)</span>
+  <span style="margin-left:auto;color:#444;">9:15 AM — 3:30 PM IST</span>
 </div>
 
 <div id="app">
@@ -108,11 +124,8 @@ body {
 </div>
 
 <script>
-// ===========================
-// CONFIG
-// ===========================
 const API_URL = '/api/range';
-const MAX_POINTS = 3600; // 1hr of 1-sec ticks
+const MAX_POINTS = 22500;
 
 let chartData = {
   labels: [], spot: [],
@@ -124,9 +137,6 @@ let rangeChart = null;
 let MANUAL_MODE = false;
 let manualData = { nifty: 24780.50, vix: 21.14, dte: 27 };
 
-// ===========================
-// FETCH
-// ===========================
 async function fetchData() {
   try {
     const res = await fetch(API_URL);
@@ -138,7 +148,7 @@ async function fetchData() {
     return data;
   } catch (err) {
     MANUAL_MODE = true;
-    return calculateManual(manualData.nifty, manualData.vix, manualData.dte);
+    return calcManual(manualData.nifty, manualData.vix, manualData.dte);
   }
 }
 
@@ -147,13 +157,13 @@ function showLogin() {
     <div class="center-box"><div class="login-card">
       <div style="font-size:36px;margin-bottom:10px;">🔐</div>
       <h2>Upstox Login Required</h2>
-      <p>1. Click Login → 2. Login to Upstox → 3. Copy code → 4. Paste below</p>
-      <a class="btn" href="/login">🔐 LOGIN</a>
+      <p>1. Click Login → 2. Upstox Login → 3. Copy code → 4. Paste below</p>
+      <a class="btn" href="/login">LOGIN TO UPSTOX</a>
       <div style="margin-top:14px;">
         <input type="text" id="auth-code" placeholder="Paste auth code">
         <button onclick="submitCode()">SUBMIT</button>
       </div>
-      <div style="margin-top:16px;border-top:1px solid #1c2432;padding-top:14px;">
+      <div style="margin-top:16px;border-top:1px solid #1e1e2e;padding-top:14px;">
         <button class="manual-btn" onclick="goManual()">⚡ MANUAL MODE</button>
       </div>
     </div></div>`;
@@ -166,11 +176,11 @@ function submitCode() {
 
 function goManual() {
   MANUAL_MODE = true;
-  showChart();
-  processData(calculateManual(manualData.nifty, manualData.vix, manualData.dte));
+  showChartArea();
+  processData(calcManual(manualData.nifty, manualData.vix, manualData.dte));
 }
 
-function calculateManual(nifty, vix, dte) {
+function calcManual(nifty, vix, dte) {
   const av = vix / 100, tf = Math.sqrt(dte / 365);
   const m1 = nifty * av * tf, m2 = m1 * 2, m3 = m1 * 3;
   return {
@@ -179,29 +189,24 @@ function calculateManual(nifty, vix, dte) {
     config: { dte },
     ranges: {
       daily: { points: 0 },
-      sd1: { points: +m1.toFixed(2), upper: +(nifty+m1).toFixed(2), lower: +(nifty-m1).toFixed(2), lowerStrike: 0, upperStrike: 0, prob: 68.27 },
-      sd2: { points: +m2.toFixed(2), upper: +(nifty+m2).toFixed(2), lower: +(nifty-m2).toFixed(2), lowerStrike: 0, upperStrike: 0, prob: 95.45 },
-      sd3: { points: +m3.toFixed(2), upper: +(nifty+m3).toFixed(2), lower: +(nifty-m3).toFixed(2), lowerStrike: 0, upperStrike: 0, prob: 99.73 },
+      sd1: { points:+m1.toFixed(2), upper:+(nifty+m1).toFixed(2), lower:+(nifty-m1).toFixed(2), lowerStrike:0, upperStrike:0, prob:68.27 },
+      sd2: { points:+m2.toFixed(2), upper:+(nifty+m2).toFixed(2), lower:+(nifty-m2).toFixed(2), lowerStrike:0, upperStrike:0, prob:95.45 },
+      sd3: { points:+m3.toFixed(2), upper:+(nifty+m3).toFixed(2), lower:+(nifty-m3).toFixed(2), lowerStrike:0, upperStrike:0, prob:99.73 },
     },
   };
 }
 
-// ===========================
-// SHOW CHART CONTAINER
-// ===========================
-function showChart() {
-  document.getElementById('app').innerHTML = '<div class="chart-wrap"><canvas id="rangeChart"></canvas></div>';
+function showChartArea() {
+  document.getElementById('app').innerHTML = '<div class="chart-container"><canvas id="rangeChart"></canvas></div>';
 }
 
-// ===========================
-// PROCESS DATA & UPDATE CHART
-// ===========================
 const fmtIN = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 1 });
 
 function processData(d) {
-  const now = new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
 
-  chartData.labels.push(now);
+  chartData.labels.push(timeStr);
   chartData.spot.push(d.market.nifty);
   chartData.sd1U.push(d.ranges.sd1.upper);
   chartData.sd1L.push(d.ranges.sd1.lower);
@@ -214,7 +219,6 @@ function processData(d) {
     Object.keys(chartData).forEach(k => chartData[k].shift());
   }
 
-  // Header update
   document.getElementById('hSpot').textContent = fmtIN(d.market.nifty);
   const chgEl = document.getElementById('hChg');
   const isUp = d.market.pctChange >= 0;
@@ -243,11 +247,15 @@ function updateChart() {
     return;
   }
 
-  const mkLine = (label, color, width, dash, fillTarget, fillColor) => ({
-    label, data: [], borderColor: color, borderWidth: width,
-    borderDash: dash || [], pointRadius: 0, tension: 0.15,
-    fill: fillTarget || false,
-    backgroundColor: fillColor || 'transparent',
+  const mkDS = (label, color, width, dash) => ({
+    label, data: [],
+    borderColor: color,
+    borderWidth: width,
+    borderDash: dash || [],
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    tension: 0.1,
+    fill: false,
   });
 
   rangeChart = new Chart(ctx, {
@@ -255,13 +263,13 @@ function updateChart() {
     data: {
       labels: chartData.labels,
       datasets: [
-        { ...mkLine('NIFTY SPOT', '#ffffff', 2), data: chartData.spot },
-        { ...mkLine('1σ Upper', '#fc5c65', 1.5, [6,3]), data: chartData.sd1U },
-        { ...mkLine('1σ Lower', '#26de81', 1.5, [6,3], '-1', 'rgba(252,92,101,0.05)'), data: chartData.sd1L },
-        { ...mkLine('2σ Upper', '#45aaf2', 1, [4,4]), data: chartData.sd2U },
-        { ...mkLine('2σ Lower', '#45aaf2', 1, [4,4], '-1', 'rgba(69,170,242,0.04)'), data: chartData.sd2L },
-        { ...mkLine('3σ Upper', '#a55eea', 0.8, [2,5]), data: chartData.sd3U },
-        { ...mkLine('3σ Lower', '#a55eea', 0.8, [2,5], '-1', 'rgba(165,94,234,0.03)'), data: chartData.sd3L },
+        { ...mkDS('Spot', '#2ecc71', 2), data: chartData.spot },
+        { ...mkDS('1σ Upper', '#ff6b6b', 1.2, [6,4]), data: chartData.sd1U },
+        { ...mkDS('1σ Lower', '#ff6b6b', 1.2, [6,4]), data: chartData.sd1L },
+        { ...mkDS('2σ Upper', '#4dabf7', 1, [4,4]), data: chartData.sd2U },
+        { ...mkDS('2σ Lower', '#4dabf7', 1, [4,4]), data: chartData.sd2L },
+        { ...mkDS('3σ Upper', '#b197fc', 0.8, [2,4]), data: chartData.sd3U },
+        { ...mkDS('3σ Lower', '#b197fc', 0.8, [2,4]), data: chartData.sd3L },
       ],
     },
     options: {
@@ -270,47 +278,57 @@ function updateChart() {
       animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          position: 'top', align: 'end',
-          labels: {
-            color: '#7d8590', font: { family: 'DM Mono', size: 10 },
-            usePointStyle: true, pointStyle: 'line', padding: 12,
-            filter: (item) => !item.text.includes('Lower'), // show only Upper labels to avoid duplication
-          }
-        },
+        legend: { display: false },
         tooltip: {
-          backgroundColor: '#0d1117ee', borderColor: '#1c2432', borderWidth: 1,
-          titleFont: { family: 'DM Mono', size: 11 },
+          backgroundColor: '#16161e',
+          titleColor: '#ccc',
+          bodyColor: '#aaa',
+          borderColor: '#2a2a3a',
+          borderWidth: 1,
+          titleFont: { family: 'DM Mono', size: 11, weight: '500' },
           bodyFont: { family: 'DM Mono', size: 11 },
+          padding: 10,
+          cornerRadius: 6,
+          displayColors: true,
+          boxPadding: 4,
           callbacks: {
-            label: ctx => ' ' + ctx.dataset.label + ': ' + fmtIN(ctx.parsed.y)
+            label: ctx => ' ' + ctx.dataset.label + '  ' + fmtIN(ctx.parsed.y),
           }
         }
       },
       scales: {
         x: {
-          ticks: { color: '#484f58', font: { family: 'DM Mono', size: 9 }, maxTicksLimit: 12, maxRotation: 0 },
-          grid: { color: '#1c243212' }
+          ticks: {
+            color: '#444',
+            font: { family: 'DM Mono', size: 10 },
+            maxTicksLimit: 14,
+            maxRotation: 0,
+            callback: function(val, i) {
+              const label = this.getLabelForValue(val);
+              return label ? label.substring(0, 5) : '';
+            }
+          },
+          grid: { color: '#141420', drawTicks: false },
+          border: { color: '#1e1e2e' }
         },
         y: {
           position: 'right',
           ticks: {
-            color: '#7d8590', font: { family: 'DM Mono', size: 10 },
+            color: '#555',
+            font: { family: 'DM Mono', size: 11 },
+            padding: 8,
             callback: v => Number(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })
           },
-          grid: { color: '#1c243225' }
+          grid: { color: '#111118', drawTicks: false },
+          border: { display: false }
         }
       }
     }
   });
 }
 
-// ===========================
-// SSE LIVE STREAM (every tick)
-// ===========================
 function startLiveStream() {
   const evtSource = new EventSource('/api/stream');
-
   evtSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
@@ -319,17 +337,13 @@ function startLiveStream() {
       console.log('Stream parse error:', err);
     }
   };
-
   evtSource.onerror = () => console.log('Stream disconnected, auto-retrying...');
 }
 
-// ===========================
-// INIT
-// ===========================
 async function init() {
   const data = await fetchData();
   if (!data) return;
-  showChart();
+  showChartArea();
   processData(data);
   startLiveStream();
 }
