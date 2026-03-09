@@ -218,16 +218,19 @@ app.get('/api/backfill', async (req, res) => {
 });
 
 // ═══════════════════════════════════════
-// ROUTE: /api/candles — Debug raw candle data
+// ROUTE: /api/candles — Debug candle API
 // ═══════════════════════════════════════
 app.get('/api/candles', async (req, res) => {
     try {
-        const niftyCandles = await upstox.getIntradayCandles(config.NIFTY_KEY, '1minute');
-        const vixCandles = await upstox.getIntradayCandles(config.VIX_KEY, '1minute');
+        const niftyDebug = await upstox.debugCandleAPI(config.NIFTY_KEY);
+        const vixDebug = await upstox.debugCandleAPI(config.VIX_KEY);
         res.json({
             success: true,
-            nifty: { count: niftyCandles.length, first: niftyCandles[niftyCandles.length - 1], last: niftyCandles[0], sample: niftyCandles.slice(0, 3) },
-            vix: { count: vixCandles.length, first: vixCandles[vixCandles.length - 1], last: vixCandles[0], sample: vixCandles.slice(0, 3) },
+            serverTime: new Date().toISOString(),
+            niftyKey: config.NIFTY_KEY,
+            vixKey: config.VIX_KEY,
+            nifty: niftyDebug,
+            vix: vixDebug,
         });
     } catch (err) {
         res.json({ success: false, error: err.message });

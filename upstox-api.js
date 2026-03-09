@@ -186,12 +186,10 @@ async function getNiftyAndVIX() {
     return { nifty, vix };
 }
 
-// ─── Fetch full day 1-min candles (Historical Candle API) ───
+// ─── Fetch full day 1-min candles ───
+// Upstox Historical Candle API is PUBLIC — no auth headers needed
+// URL: /v2/historical-candle/{key}/{interval}/{to_date}/{from_date}
 async function getIntradayCandles(instrumentKey, interval = '1minute') {
-    if (!session.isLoggedIn || !session.accessToken) {
-        throw new Error('Not logged in');
-    }
-
     const encodedKey = encodeURIComponent(instrumentKey);
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -199,10 +197,35 @@ async function getIntradayCandles(instrumentKey, interval = '1minute') {
     const dd = String(today.getDate()).padStart(2, '0');
     const dateStr = `${yyyy}-${mm}-${dd}`;
 
-    // Method 1: Historical candle API with today's date (full day data)
+    const errors = [];
+
+    // Method 1: Historical candle API (PUBLIC — no auth)
+    // Note: URL format is /{to_date}/{from_date}
     try {
         const url = `https://api.upstox.com/v2/historical-candle/${encodedKey}/${interval}/${dateStr}/${dateStr}`;
-        console.log(`📡 Fetching candles: ${instrumentKey} | ${dateStr}`);
+        console.log(`📡 [Method 1] Historical API: ${url}`);
+
+        const response = await axios.get(url, {
+            headers: { 'Accept': 'application/json' },
+            timeout: 15000,
+        });
+
+        if (response.data.status === 'success' && response.data.data.candles) {
+            const candles = response.data.data.candles;
+            console.log(`   ✅ Got ${candles.length} candles`);
+            if (candles.length > 0) return candles;
+        }
+        errors.push('Method 1: success but 0 candles');
+    } catch (err) {
+        const msg = err.response?.data?.message || err.response?.data || err.message;
+        console.log(`   ⚠ Method 1 failed:`, msg);
+        errors.push(`Method 1: ${JSON.stringify(msg)}`);
+    }
+
+    // Method 2: Try with auth headers
+    try {
+        const url = `https://api.upstox.com/v2/historical-candle/${encodedKey}/${interval}/${dateStr}/${dateStr}`;
+        console.log(`📡 [Method 2] Historical API with auth`);
 
         const response = await axios.get(url, {
             headers: getHeaders(),
@@ -211,17 +234,20 @@ async function getIntradayCandles(instrumentKey, interval = '1minute') {
 
         if (response.data.status === 'success' && response.data.data.candles) {
             const candles = response.data.data.candles;
-            console.log(`   ✅ Got ${candles.length} candles from historical API`);
-            return candles;
+            console.log(`   ✅ Got ${candles.length} candles`);
+            if (candles.length > 0) return candles;
         }
+        errors.push('Method 2: success but 0 candles');
     } catch (err) {
-        console.log(`   ⚠ Historical API failed: ${err.response?.data?.message || err.message}`);
+        const msg = err.response?.data?.message || err.response?.data || err.message;
+        console.log(`   ⚠ Method 2 failed:`, msg);
+        errors.push(`Method 2: ${JSON.stringify(msg)}`);
     }
 
-    // Method 2: Fallback to intraday endpoint
+    // Method 3: Intraday endpoint (for live market hours)
     try {
         const url = `https://api.upstox.com/v2/historical-candle/intraday/${encodedKey}/${interval}`;
-        console.log(`📡 Fallback to intraday API: ${instrumentKey}`);
+        console.log(`📡 [Method 3] Intraday API`);
 
         const response = await axios.get(url, {
             headers: getHeaders(),
@@ -230,14 +256,68 @@ async function getIntradayCandles(instrumentKey, interval = '1minute') {
 
         if (response.data.status === 'success' && response.data.data.candles) {
             const candles = response.data.data.candles;
-            console.log(`   ✅ Got ${candles.length} candles from intraday API`);
-            return candles;
+            console.log(`   ✅ Got ${candles.length} candles`);
+            if (candles.length > 0) return candles;
         }
+        errors.push('Method 3: success but 0 candles');
     } catch (err) {
-        console.error(`   ❌ Intraday API also failed: ${err.response?.data?.message || err.message}`);
+        const msg = err.response?.data?.message || err.response?.data || err.message;
+        console.log(`   ⚠ Method 3 failed:`, msg);
+        errors.push(`Method 3: ${JSON.stringify(msg)}`);
     }
 
+    console.log('❌ All candle methods failed:', errors);
     return [];
+}
+
+// ─── Raw debug: test candle URL directly ───
+async function debugCandleAPI(instrumentKey) {
+    const encodedKey = encodeURIComponent(instrumentKey);
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+
+    const results = {};
+
+    // Test all URL variants
+    const urls = {
+        'historical_no_auth': {
+            url: `https://api.upstox.com/v2/historical-candle/${encodedKey}/1minute/${dateStr}/${dateStr}`,
+            headers: { 'Accept': 'application/json' },
+        },
+        'historical_with_auth': {
+            url: `https://api.upstox.com/v2/historical-candle/${encodedKey}/1minute/${dateStr}/${dateStr}`,
+            headers: getHeaders(),
+        },
+        'intraday_with_auth': {
+            url: `https://api.upstox.com/v2/historical-candle/intraday/${encodedKey}/1minute`,
+            headers: getHeaders(),
+        },
+    };
+
+    for (const [name, cfg] of Object.entries(urls)) {
+        try {
+            const res = await axios.get(cfg.url, { headers: cfg.headers, timeout: 10000 });
+            const candles = res.data?.data?.candles || [];
+            results[name] = {
+                url: cfg.url,
+                status: res.data?.status,
+                candleCount: candles.length,
+                firstCandle: candles.length > 0 ? candles[candles.length - 1] : null,
+                lastCandle: candles.length > 0 ? candles[0] : null,
+            };
+        } catch (err) {
+            results[name] = {
+                url: cfg.url,
+                error: err.response?.data || err.message,
+                httpStatus: err.response?.status,
+            };
+        }
+    }
+
+    return results;
 }
 
 module.exports = {
@@ -247,5 +327,6 @@ module.exports = {
     getQuote,
     getNiftyAndVIX,
     getIntradayCandles,
+    debugCandleAPI,
     getSession: () => session,
 };
