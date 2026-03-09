@@ -228,6 +228,7 @@ body {
   .hdr h1 { font-size: 20px; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="noise"></div>
@@ -239,6 +240,144 @@ body {
 </div>
 
 <script>
+// ===========================
+// CHART DATA STORE
+// ===========================
+const MAX_POINTS = 120; // 2 hours of 1-min data
+let chartData = {
+  labels: [],
+  spot: [],
+  sd1Upper: [],
+  sd1Lower: [],
+  sd2Upper: [],
+  sd2Lower: [],
+};
+let rangeChart = null;
+
+function updateChartData(d) {
+  const now = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  chartData.labels.push(now);
+  chartData.spot.push(d.market.nifty);
+  chartData.sd1Upper.push(d.ranges.sd1.upper);
+  chartData.sd1Lower.push(d.ranges.sd1.lower);
+  chartData.sd2Upper.push(d.ranges.sd2.upper);
+  chartData.sd2Lower.push(d.ranges.sd2.lower);
+
+  if (chartData.labels.length > MAX_POINTS) {
+    Object.keys(chartData).forEach(k => chartData[k].shift());
+  }
+}
+
+function renderChart() {
+  const ctx = document.getElementById('rangeChart');
+  if (!ctx) return;
+
+  if (rangeChart) {
+    rangeChart.data.labels = chartData.labels;
+    rangeChart.data.datasets[0].data = chartData.spot;
+    rangeChart.data.datasets[1].data = chartData.sd1Upper;
+    rangeChart.data.datasets[2].data = chartData.sd1Lower;
+    rangeChart.data.datasets[3].data = chartData.sd2Upper;
+    rangeChart.data.datasets[4].data = chartData.sd2Lower;
+    rangeChart.update('none');
+    return;
+  }
+
+  rangeChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartData.labels,
+      datasets: [
+        {
+          label: 'NIFTY SPOT',
+          data: chartData.spot,
+          borderColor: '#ffffff',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.3,
+          order: 0,
+        },
+        {
+          label: '1σ Upper',
+          data: chartData.sd1Upper,
+          borderColor: '#fc5c65',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 0,
+          tension: 0.3,
+          order: 1,
+        },
+        {
+          label: '1σ Lower',
+          data: chartData.sd1Lower,
+          borderColor: '#26de81',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 0,
+          tension: 0.3,
+          order: 2,
+        },
+        {
+          label: '2σ Upper',
+          data: chartData.sd2Upper,
+          borderColor: '#45aaf2',
+          borderWidth: 1,
+          borderDash: [3, 4],
+          pointRadius: 0,
+          tension: 0.3,
+          order: 3,
+        },
+        {
+          label: '2σ Lower',
+          data: chartData.sd2Lower,
+          borderColor: '#45aaf2',
+          borderWidth: 1,
+          borderDash: [3, 4],
+          pointRadius: 0,
+          tension: 0.3,
+          order: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, usePointStyle: true, pointStyle: 'line' }
+        },
+        tooltip: {
+          backgroundColor: '#131922',
+          borderColor: '#1c2432',
+          borderWidth: 1,
+          titleFont: { family: 'DM Mono' },
+          bodyFont: { family: 'DM Mono', size: 12 },
+          callbacks: {
+            label: function(ctx) {
+              return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#484f58', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 10 },
+          grid: { color: '#1c243220' }
+        },
+        y: {
+          ticks: {
+            color: '#484f58',
+            font: { family: 'DM Mono', size: 10 },
+            callback: v => Number(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })
+          },
+          grid: { color: '#1c243240' }
+        }
+      }
+    }
+  });
+}
+
 // ===========================
 // CONFIG
 // ===========================
@@ -352,7 +491,7 @@ function render(d) {
       <div class="sub">
         ${d.manual
           ? '⚡ MANUAL MODE — Enter values below'
-          : `<span class="live-dot"></span>LIVE STREAMING • Updates every 1 min `
+          : `<span class="live-dot"></span>LIVE STREAMING • Updates every 1 min`
         }
       </div>
     </div>
@@ -391,6 +530,14 @@ function render(d) {
         <div class="lbl">1σ Expected Move</div>
         <div class="val" style="color:var(--purple)">±${fmt(r.sd1.points)}</div>
         <div class="chg" style="color:var(--text2)">${moveP}% from spot</div>
+      </div>
+    </div>
+
+    <!-- Live Range Chart -->
+    <div class="panel">
+      <div class="panel-title">LIVE RANGE CHART</div>
+      <div style="position:relative;height:380px;">
+        <canvas id="rangeChart"></canvas>
       </div>
     </div>
 
@@ -537,6 +684,10 @@ function render(d) {
       ⚠ Educational purpose only • Not financial advice • ${d.source || 'Manual Mode'} • Last tick: ${new Date(d.timestamp).toLocaleString('en-IN')}
     </div>
   `;
+
+  // Update chart
+  updateChartData(d);
+  setTimeout(renderChart, 100);
 }
 
 // ===========================
